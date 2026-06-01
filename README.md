@@ -2,9 +2,7 @@
 
 A gateway-agnostic subscription & invoicing engine for Laravel — with an **optional Livewire + Flux billing UI**. **One package to maintain** — payment gateways are an extension point (a contract), not separate packages. Ships a built-in **local** gateway so any app has working billing on day one, plus optional, publishable customer-facing pages (plans, subscription management, invoices, receipts) — ideal for demo, development, UAT, and testing.
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/cleaniquecoders/laravel-billing.svg?style=flat-square)](https://packagist.org/packages/cleaniquecoders/laravel-billing)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/cleaniquecoders/laravel-billing/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/cleaniquecoders/laravel-billing/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/cleaniquecoders/laravel-billing.svg?style=flat-square)](https://packagist.org/packages/cleaniquecoders/laravel-billing)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/cleaniquecoders/laravel-billing.svg?style=flat-square)](https://packagist.org/packages/cleaniquecoders/laravel-billing) [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/cleaniquecoders/laravel-billing/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/cleaniquecoders/laravel-billing/actions?query=workflow%3Arun-tests+branch%3Amain) [![Total Downloads](https://img.shields.io/packagist/dt/cleaniquecoders/laravel-billing.svg?style=flat-square)](https://packagist.org/packages/cleaniquecoders/laravel-billing)
 
 ## Why this design
 
@@ -193,6 +191,12 @@ Invoices use atomic, row-locked sequential numbering (`INV-2026-000001`) and are
 
 The package ships a Livewire + Flux UI that closes the full **subscribe → pay → invoice → receipt** loop. It is opt-in and scoped to the authenticated billable.
 
+| Plans | Billing portal |
+|---|---|
+| ![Plans](docs/assets/ui-plans-monthly.png) | ![Billing portal](docs/assets/ui-portal-overview.png) |
+
+> More screenshots and the full walkthrough: [Billing UI docs](docs/03-billing-ui/01-overview.md).
+
 Requires `livewire/livewire` and `livewire/flux` in your app. Enable and scope it in `config('billing.routes')`:
 
 ```php
@@ -229,6 +233,17 @@ The billable is resolved via `config('billing.billable_resolver')` (defaults to 
 | Optional Livewire + Flux billing UI (publishable, overridable) | Enabling/scoping the routes, `livewire/flux` install, branding |
 
 > **UI:** the package ships an **optional** Livewire + Flux billing UI (plans, subscription, invoices, receipts) plus the dev-only local checkout page. It is opt-in — disable `billing.routes.enabled` (or skip installing `livewire/flux`) and the package stays fully headless. Publish and override the views to brand them, or build your own pages against the same models and facade.
+
+## Documentation
+
+Full documentation lives in [`docs/`](docs/README.md):
+
+- [Getting Started](docs/01-getting-started/README.md) — install, make a model billable, define plans
+- [Architecture](docs/02-architecture/README.md) — domain models, gateways, webhooks, events
+- [Billing UI](docs/03-billing-ui/README.md) — pages, routes, invoices & receipts (with screenshots)
+- [Configuration](docs/04-configuration/README.md) — every `config/billing.php` key
+- [Development](docs/05-development/README.md) — workbench preview & testing
+- [Examples](docs/06-examples/README.md) — full cycle & custom gateway
 
 ## Testing
 
