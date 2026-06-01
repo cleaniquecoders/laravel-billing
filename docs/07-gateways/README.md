@@ -36,7 +36,7 @@ as optional alternatives.
 | [senangPay](05-senangpay.md) | Form-POST | Recurring API | `status_id == 1` | Recurring API |
 | [eGHL](06-eghl.md) | Form-POST | Tokenized | `TxnStatus == 0` | Re-checkout / token |
 | [ToyyibPay](07-toyyibpay.md) | Hosted URL | No | `status_id == 1` | Re-checkout |
-| [SecurePay](08-securepay.md) | Hosted URL | Add-on | paid status | Re-checkout |
+| [SecurePay](08-securepay.md) | Form-POST | Add-on | `payment_status == true` | Re-checkout |
 | [BayarCash](09-bayarcash.md) | Hosted URL | Tokenized (FPX DD) | `status == 3` | DD mandate charge |
 
 ## Webhook event mapping
