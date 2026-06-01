@@ -190,7 +190,10 @@ class BillingManager
         }
 
         if (is_string($driver) && class_exists($driver)) {
-            return $this->build($this->container->make($driver), $name);
+            // Pass the gateway's config block to the driver constructor (named
+            // `config`). Drivers extending Gateway accept it; drivers that don't
+            // declare a `config` parameter simply ignore the extra argument.
+            return $this->build($this->container->make($driver, ['config' => $config]), $name);
         }
 
         throw new InvalidArgumentException("Billing gateway [{$name}] has an invalid driver.");

@@ -28,20 +28,20 @@ return [
             'enabled' => env('BILLING_LOCAL_ENABLED', true), // never serves in production
             'auto' => env('BILLING_LOCAL_AUTO', false),      // auto-approve (CI/tests)
         ],
-        // Apps add their own by implementing the PaymentGateway contract and
-        // pointing 'driver' at the class. Copy-paste driver classes for the
-        // gateways below live in docs/07-gateways/. The package never depends
-        // on any gateway SDK — install those in your own app.
+        // Real drivers ship with the package under
+        // CleaniqueCoders\LaravelBilling\Gateways\*. Enable one by adding its
+        // config block (see docs/07-gateways/). The manager injects the block
+        // into the driver. Drivers use Laravel's HTTP client — no gateway SDK.
         //
-        // 'stripe'    => ['driver' => App\Billing\StripeGateway::class],
-        // 'paypal'    => ['driver' => App\Billing\PayPalGateway::class],
-        // 'ipay88'    => ['driver' => App\Billing\Ipay88Gateway::class],
-        // 'billplz'   => ['driver' => App\Billing\BillplzGateway::class],
-        // 'senangpay' => ['driver' => App\Billing\SenangPayGateway::class],
-        // 'eghl'      => ['driver' => App\Billing\EghlGateway::class],
-        // 'toyyibpay' => ['driver' => App\Billing\ToyyibPayGateway::class],
-        // 'securepay' => ['driver' => App\Billing\SecurePayGateway::class],
-        // 'bayarcash' => ['driver' => App\Billing\BayarCashGateway::class],
+        // 'stripe' => [
+        //     'driver' => CleaniqueCoders\LaravelBilling\Gateways\StripeGateway::class,
+        //     'secret' => env('STRIPE_SECRET'),
+        //     'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        //     'prices' => ['pro' => ['monthly' => env('STRIPE_PRICE_PRO_MONTHLY')]],
+        // ],
+        // Others (configured the same way): PayPalGateway, Ipay88Gateway,
+        // BillplzGateway, SenangPayGateway, EghlGateway, ToyyibPayGateway,
+        // SecurePayGateway, BayarCashGateway.
     ],
 
     /*
