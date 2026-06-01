@@ -19,3 +19,14 @@ parameters:
         -
             identifier: trait.unused
             path: src/Concerns/HasSubscriptions.php
+        # Larastan cannot resolve the package's runtime-registered `billing::`
+        # view namespace during isolated CI analysis, so it reports these literal
+        # namespaced view names as plain strings (a view-string false positive —
+        # the views exist under resources/views/). reportUnmatched is false: a
+        # fully-booted context (local) resolves them with no error to suppress.
+        -
+            message: '#expects view-string\|null, string given#'
+            paths:
+                - src/Livewire
+                - src/Http/Controllers
+            reportUnmatched: false
