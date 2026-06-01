@@ -5,12 +5,17 @@ name. A real gateway is one small class in **your app** implementing
 [`Contracts\PaymentGateway`](../../src/Contracts/PaymentGateway.php) (3 methods:
 `createCheckout`, `cancel`, `parseWebhook`), registered in `config/billing.php`.
 
-These pages are **copy-paste recipes**: paste the driver into your app (e.g.
-`app/Billing/`), install the gateway's SDK in your app (never in the package), add the
-config block, and wire one webhook route. The package's
-[`SignsPayloads`](../../src/Gateways/Concerns/SignsPayloads.php) trait and
-[`RedirectForm`](../../src/Gateways/Support/RedirectForm.php) bridge (the
-`billing.gateway.redirect` route) do the signing/redirect heavy lifting.
+Each gateway below ships as a **real driver class** in the package
+(`CleaniqueCoders\LaravelBilling\Gateways\*`), built on
+[`SignsPayloads`](../../src/Gateways/Concerns/SignsPayloads.php) and the
+[`RedirectForm`](../../src/Gateways/Support/RedirectForm.php) bridge. To use one you don't
+write driver code — set its config block (the manager injects it), point a webhook route at
+it, done. These pages document the config, webhook mapping, and sandbox per gateway. The
+drivers use Laravel's HTTP client (no gateway SDK is required); official SDKs are listed only
+as optional alternatives.
+
+> You can still write your own driver instead — see
+> [Write your own gateway](../06-examples/02-custom-gateway.md). The contract is identical.
 
 ## The two shapes
 
