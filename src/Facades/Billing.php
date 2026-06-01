@@ -6,15 +6,14 @@ use CleaniqueCoders\LaravelBilling\BillingManager;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * Alias of {@see Billing}. Kept for the package's auto-discovered facade name.
- *
  * @method static \CleaniqueCoders\LaravelBilling\Contracts\PaymentGateway gateway(?string $name = null)
  * @method static \CleaniqueCoders\LaravelBilling\BillingManager extend(string $name, \Closure $callback)
  * @method static void handle(\CleaniqueCoders\LaravelBilling\DataTransferObjects\WebhookEvent $event)
+ * @method static string getDefaultGateway()
  *
  * @see BillingManager
  */
-class LaravelBilling extends Facade
+class Billing extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
