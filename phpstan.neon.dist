@@ -19,3 +19,8 @@ parameters:
         -
             identifier: trait.unused
             path: src/Concerns/HasSubscriptions.php
+        # SignsPayloads is consumed by the copy-paste gateway driver recipes in
+        # docs/07-gateways/ (app-side code), never within the package itself.
+        -
+            identifier: trait.unused
+            path: src/Gateways/Concerns/SignsPayloads.php

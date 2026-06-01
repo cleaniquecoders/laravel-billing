@@ -42,9 +42,20 @@ class LaravelBillingServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        $this->bootGatewayRoutes();
         $this->bootLocalGatewayRoutes();
         $this->bootBillingUi();
         $this->bootPublishables();
+    }
+
+    /**
+     * The gateway redirect bridge (form-POST gateways). Registered whenever
+     * billing routes are enabled, independent of the Livewire UI, since
+     * headless installs may still use a form-POST gateway.
+     */
+    protected function bootGatewayRoutes(): void
+    {
+        $this->loadRoutesFrom(__DIR__.'/../routes/gateway.php');
     }
 
     /**
