@@ -1,0 +1,43 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('subscriptions', function (Blueprint $table) {
+            $table->id();
+            $table->uuid('uuid')->unique();
+
+            $table->morphs('billable');                       // billable_type, billable_id
+
+            $table->string('plan_tier');                      // tier snapshot (works for both stores)
+            $table->string('status')->index();
+            $table->string('interval');
+
+            $table->timestamp('trial_ends_at')->nullable();
+            $table->timestamp('current_period_start');
+            $table->timestamp('current_period_end');
+            $table->timestamp('canceled_at')->nullable();
+            $table->boolean('cancel_at_period_end')->default(false);
+
+            $table->string('gateway');                        // driver name, e.g. 'local'
+            $table->string('gateway_subscription_id')->nullable()->index();
+
+            $table->foreignId('created_by')->nullable();
+            $table->foreignId('updated_by')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index(['billable_type', 'billable_id', 'status']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('subscriptions');
+    }
+};

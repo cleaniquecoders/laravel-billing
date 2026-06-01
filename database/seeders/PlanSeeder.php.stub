@@ -1,0 +1,34 @@
+<?php
+
+namespace Database\Seeders;
+
+use CleaniqueCoders\LaravelBilling\Models\Plan;
+use Illuminate\Database\Seeder;
+
+/**
+ * Hydrates the plans table from config('billing.plans'). Idempotent —
+ * updateOrCreate keyed on the unique tier. Only relevant when
+ * config('billing.store') === 'database'.
+ */
+class PlanSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $model = config('billing.models.plan', Plan::class);
+
+        foreach (config('billing.plans', []) as $tier => $attributes) {
+            $model::updateOrCreate(
+                ['tier' => $tier],
+                [
+                    'name' => $attributes['name'] ?? ucfirst($tier),
+                    'tagline' => $attributes['tagline'] ?? null,
+                    'price_cents' => $attributes['price_cents'] ?? ['monthly' => 0, 'annual' => 0],
+                    'limits' => $attributes['limits'] ?? [],
+                    'features' => $attributes['features'] ?? [],
+                    'is_active' => $attributes['is_active'] ?? true,
+                    'sort_order' => $attributes['sort_order'] ?? 0,
+                ]
+            );
+        }
+    }
+}

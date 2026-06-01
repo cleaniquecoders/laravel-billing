@@ -8,3 +8,19 @@ parameters:
         - config
         - database
     tmpDir: build/phpstan
+    ignoreErrors:
+        # env() in the package config file is correct usage; Larastan can only
+        # recognise the host app's config directory, not a package's.
+        -
+            identifier: larastan.noEnvCallsOutsideOfConfig
+            path: config/billing.php
+        # HasSubscriptions is a public-API trait consumed by host app models,
+        # so it is never used within the package's own analysed source.
+        -
+            identifier: trait.unused
+            path: src/Concerns/HasSubscriptions.php
+        # The dev-checkout view ships in this package; its namespaced name is
+        # not resolvable by Larastan's view-string inference.
+        -
+            identifier: argument.type
+            path: src/Http/Controllers/LocalCheckoutController.php
