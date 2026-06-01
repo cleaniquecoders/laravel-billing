@@ -3,6 +3,10 @@
 A real gateway is one class implementing `PaymentGateway`, registered in config. The package never
 references a provider by name — this is the entire surface you implement.
 
+> **Ready-made recipes:** copy-paste drivers for Stripe, PayPal, iPay88, Billplz, senangPay, eGHL,
+> ToyyibPay, SecurePay and BayarCash live in [`docs/07-gateways/`](../07-gateways/README.md). This
+> page explains the pattern they all follow.
+
 ## Implement the contract
 
 ```php
