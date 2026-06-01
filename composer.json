@@ -1,17 +1,17 @@
 {
-    "name": ":vendor_slug/:package_slug",
-    "description": ":package_description",
+    "name": "cleaniquecoders/laravel-billing",
+    "description": "A headless, gateway-agnostic subscription & invoicing engine for Laravel. One package to maintain. Payment gateways are an extension point (a contract), not separate packages. Ships a built-in local gateway so any app has working billing on day one — ideal for demo, development, UAT, and testing.",
     "keywords": [
-        ":vendor_name",
+        "CleaniqueCoders",
         "laravel",
-        ":package_slug"
+        "laravel-billing"
     ],
-    "homepage": "https://github.com/:vendor_slug/:package_slug",
+    "homepage": "https://github.com/cleaniquecoders/laravel-billing",
     "license": "MIT",
     "authors": [
         {
-            "name": ":author_name",
-            "email": "author@domain.com",
+            "name": "Nasrul Hazim Bin Mohamad",
+            "email": "nasrulhazim.m@gmail.com",
             "role": "Developer"
         }
     ],
@@ -30,18 +30,17 @@
         "pestphp/pest-plugin-laravel": "^4.0",
         "phpstan/extension-installer": "^1.4",
         "phpstan/phpstan-deprecation-rules": "^2.0",
-        "phpstan/phpstan-phpunit": "^2.0",
-        "spatie/laravel-ray": "^1.35"
+        "phpstan/phpstan-phpunit": "^2.0"
     },
     "autoload": {
         "psr-4": {
-            "VendorName\\Skeleton\\": "src/",
-            "VendorName\\Skeleton\\Database\\Factories\\": "database/factories/"
+            "CleaniqueCoders\\LaravelBilling\\": "src/",
+            "CleaniqueCoders\\LaravelBilling\\Database\\Factories\\": "database/factories/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "VendorName\\Skeleton\\Tests\\": "tests/",
+            "CleaniqueCoders\\LaravelBilling\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/"
         }
     },
@@ -63,10 +62,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "VendorName\\Skeleton\\SkeletonServiceProvider"
+                "CleaniqueCoders\\LaravelBilling\\LaravelBillingServiceProvider"
             ],
             "aliases": {
-                "Skeleton": "VendorName\\Skeleton\\Facades\\Skeleton"
+                "LaravelBilling": "CleaniqueCoders\\LaravelBilling\\Facades\\LaravelBilling"
             }
         }
     },
