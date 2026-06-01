@@ -2,9 +2,9 @@
 
 namespace CleaniqueCoders\LaravelBilling;
 
+use CleaniqueCoders\LaravelBilling\Commands\LaravelBillingCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use CleaniqueCoders\LaravelBilling\Commands\LaravelBillingCommand;
 
 class LaravelBillingServiceProvider extends PackageServiceProvider
 {

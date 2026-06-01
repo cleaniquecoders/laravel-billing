@@ -2,9 +2,9 @@
 
 namespace CleaniqueCoders\LaravelBilling\Tests;
 
+use CleaniqueCoders\LaravelBilling\LaravelBillingServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
-use CleaniqueCoders\LaravelBilling\LaravelBillingServiceProvider;
 
 class TestCase extends Orchestra
 {
