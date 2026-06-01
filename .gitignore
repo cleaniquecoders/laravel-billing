@@ -4,6 +4,12 @@ composer.lock
 
 # Frontend Assets
 /node_modules
+package-lock.json
+
+# Workbench / Vite dev assets
+/public/build
+/public/hot
+/workbench/storage
 
 # Logs
 npm-debug.log
@@ -27,6 +33,8 @@ _ide_helper_models.php
 # Misc
 phpunit.xml
 phpstan.neon
-testbench.yaml
 /docs
 /coverage
+
+# Design references (local only)
+/references

@@ -19,8 +19,3 @@ parameters:
         -
             identifier: trait.unused
             path: src/Concerns/HasSubscriptions.php
-        # The dev-checkout view ships in this package; its namespaced name is
-        # not resolvable by Larastan's view-string inference.
-        -
-            identifier: argument.type
-            path: src/Http/Controllers/LocalCheckoutController.php

@@ -75,6 +75,23 @@ return [
         'disk' => env('BILLING_INVOICE_DISK', 'local'),
         'path' => 'billing/{billable_type}/{billable_id}/invoices/{invoice_uuid}.pdf',
         'view' => 'billing::invoice-pdf',
+        'receipt_view' => 'billing::receipt-pdf',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tax (e.g. Malaysian SST)
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, IssueInvoice computes tax = round(subtotal * rate) and the
+    | invoice records subtotal_cents / tax_cents / tax_rate / tax_label.
+    |
+    */
+
+    'tax' => [
+        'enabled' => env('BILLING_TAX_ENABLED', false),
+        'rate' => (float) env('BILLING_TAX_RATE', 0), // e.g. 0.08 for 8% SST
+        'label' => env('BILLING_TAX_LABEL', 'SST'),
     ],
 
     /*
@@ -110,6 +127,34 @@ return [
     */
 
     'trial_days' => env('BILLING_TRIAL_DAYS', 0),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Customer-facing UI (optional Livewire + Flux)
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, the package registers /billing routes (plans, portal,
+    | success, invoice/receipt downloads) behind the configured middleware.
+    | Requires livewire/livewire + livewire/flux in the host app. Disable to
+    | keep the package fully headless and wire your own UI.
+    |
+    | The billable_resolver returns the billable the UI is scoped to for the
+    | current request. Default: the authenticated user. Override to scope
+    | billing to a Team/Workspace, e.g. fn ($request) => $request->user()->currentTeam.
+    |
+    */
+
+    'routes' => [
+        'enabled' => env('BILLING_UI_ENABLED', true),
+        'prefix' => env('BILLING_UI_PREFIX', 'billing'),
+        'middleware' => ['web', 'auth'],
+    ],
+
+    // Layout the full-page billing components render into. Override with your
+    // app's own layout (must expose a {{ $slot }}).
+    'layout' => env('BILLING_UI_LAYOUT', 'billing::layouts.app'),
+
+    'billable_resolver' => null,
 
     /*
     |--------------------------------------------------------------------------

@@ -2,10 +2,14 @@
 
 namespace CleaniqueCoders\LaravelBilling;
 
+use CleaniqueCoders\LaravelBilling\Livewire\BillingPortal;
+use CleaniqueCoders\LaravelBilling\Livewire\PaymentSuccess;
+use CleaniqueCoders\LaravelBilling\Livewire\Plans;
 use CleaniqueCoders\LaravelBilling\Services\IssueInvoice;
 use CleaniqueCoders\LaravelBilling\Services\PlanRepository;
 use CleaniqueCoders\LaravelBilling\Services\WebhookProcessor;
 use CleaniqueCoders\LaravelBilling\Support\PlanLimits;
+use Livewire\Livewire;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -39,7 +43,26 @@ class LaravelBillingServiceProvider extends PackageServiceProvider
     public function packageBooted(): void
     {
         $this->bootLocalGatewayRoutes();
+        $this->bootBillingUi();
         $this->bootPublishables();
+    }
+
+    /**
+     * Register the optional Livewire + Flux billing UI. Only wires up when
+     * Livewire is installed; the routes file further guards on
+     * config('billing.routes.enabled').
+     */
+    protected function bootBillingUi(): void
+    {
+        if (! class_exists(Livewire::class)) {
+            return;
+        }
+
+        Livewire::component('billing.plans', Plans::class);
+        Livewire::component('billing.portal', BillingPortal::class);
+        Livewire::component('billing.payment-success', PaymentSuccess::class);
+
+        $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
     }
 
     /**

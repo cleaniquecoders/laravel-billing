@@ -68,23 +68,45 @@
         <thead>
             <tr>
                 <th>Description</th>
-                <th>Period</th>
+                <th class="right">Qty</th>
                 <th class="right">Amount</th>
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td>{{ ucfirst($invoice->plan_tier) }} plan ({{ $invoice->interval->value }})</td>
-                <td>{{ optional($invoice->period_start)->toDateString() }} — {{ optional($invoice->period_end)->toDateString() }}</td>
-                <td class="right">{{ number_format($invoice->totalMajor(), 2) }} {{ $invoice->currency }}</td>
-            </tr>
+            @foreach($invoice->lineItems() as $item)
+                <tr>
+                    <td>
+                        {{ $item['description'] }}<br>
+                        <span class="muted">{{ optional($invoice->period_start)->toDateString() }} — {{ optional($invoice->period_end)->toDateString() }}</span>
+                    </td>
+                    <td class="right">{{ $item['qty'] }}</td>
+                    <td class="right">{{ number_format(($item['amount_cents'] ?? 0) / 100, 2) }} {{ $invoice->currency }}</td>
+                </tr>
+            @endforeach
         </tbody>
         <tfoot>
+            <tr>
+                <td colspan="2" class="right">Subtotal</td>
+                <td class="right">{{ number_format($invoice->subtotalMajor(), 2) }} {{ $invoice->currency }}</td>
+            </tr>
+            @if($invoice->tax_cents > 0)
+                <tr>
+                    <td colspan="2" class="right">
+                        {{ $invoice->tax_label ?? 'Tax' }}
+                        @if($invoice->tax_rate) ({{ rtrim(rtrim(number_format($invoice->tax_rate * 100, 2), '0'), '.') }}%) @endif
+                    </td>
+                    <td class="right">{{ number_format($invoice->taxMajor(), 2) }} {{ $invoice->currency }}</td>
+                </tr>
+            @endif
             <tr class="total">
                 <td colspan="2" class="right">Total</td>
                 <td class="right">{{ number_format($invoice->totalMajor(), 2) }} {{ $invoice->currency }}</td>
             </tr>
         </tfoot>
     </table>
+
+    @if($invoice->tax_cents > 0)
+        <div class="section muted">Tax Invoice &middot; Tax = {{ $invoice->tax_label ?? 'SST' }}</div>
+    @endif
 </body>
 </html>

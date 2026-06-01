@@ -29,6 +29,10 @@ return new class extends Migration
             $table->timestamp('period_start');
             $table->timestamp('period_end');
 
+            $table->unsignedBigInteger('subtotal_cents')->default(0);
+            $table->unsignedBigInteger('tax_cents')->default(0);
+            $table->decimal('tax_rate', 5, 4)->nullable();   // e.g. 0.0800 = 8%
+            $table->string('tax_label')->nullable();          // e.g. SST
             $table->unsignedBigInteger('total_cents');
             $table->string('currency', 3)->default('MYR');
             $table->string('status');

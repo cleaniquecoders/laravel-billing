@@ -22,6 +22,10 @@ use Illuminate\Support\Carbon;
  * @property PlanInterval $interval
  * @property Carbon|null $period_start
  * @property Carbon|null $period_end
+ * @property int $subtotal_cents
+ * @property int $tax_cents
+ * @property float|null $tax_rate
+ * @property string|null $tax_label
  * @property int $total_cents
  * @property string $currency
  * @property InvoiceStatus $status
@@ -29,6 +33,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $paid_at
  * @property string|null $storage_path
  * @property array<string,mixed> $metadata
+ * @property-read Subscription|null $subscription
  */
 class Invoice extends Model
 {
@@ -44,6 +49,9 @@ class Invoice extends Model
         'period_end' => 'datetime',
         'issued_at' => 'datetime',
         'paid_at' => 'datetime',
+        'subtotal_cents' => 'integer',
+        'tax_cents' => 'integer',
+        'tax_rate' => 'float',
         'total_cents' => 'integer',
         'metadata' => 'array',
     ];
@@ -66,5 +74,57 @@ class Invoice extends Model
     public function totalMajor(): float
     {
         return $this->total_cents / 100;
+    }
+
+    public function subtotalMajor(): float
+    {
+        return $this->subtotal_cents / 100;
+    }
+
+    public function taxMajor(): float
+    {
+        return $this->tax_cents / 100;
+    }
+
+    public function isPaid(): bool
+    {
+        return $this->status === InvoiceStatus::Paid;
+    }
+
+    /**
+     * The payment method shown on the invoice/receipt. Real gateways may store
+     * a card brand + last4 in metadata; falls back to the subscription gateway.
+     */
+    public function paymentMethod(): ?string
+    {
+        $method = $this->metadata['payment_method'] ?? null;
+
+        if (is_string($method) && $method !== '') {
+            return $method;
+        }
+
+        return $this->subscription?->gateway;
+    }
+
+    /**
+     * Invoice line items. Apps may store a richer breakdown in
+     * metadata['line_items']; otherwise a single plan line is derived.
+     *
+     * @return array<int,array{description:string,qty:int,unit_cents:int,amount_cents:int}>
+     */
+    public function lineItems(): array
+    {
+        $items = $this->metadata['line_items'] ?? null;
+
+        if (is_array($items) && $items !== []) {
+            return $items;
+        }
+
+        return [[
+            'description' => ucfirst($this->plan_tier).' plan ('.$this->interval->value.')',
+            'qty' => 1,
+            'unit_cents' => $this->subtotal_cents,
+            'amount_cents' => $this->subtotal_cents,
+        ]];
     }
 }

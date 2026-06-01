@@ -50,6 +50,13 @@ class IssueInvoice
         /** @var class-string<Invoice> $invoiceModel */
         $invoiceModel = $this->config['models']['invoice'] ?? Invoice::class;
 
+        $subtotalCents = $plan?->priceCents($subscription->interval) ?? 0;
+
+        $taxConfig = $this->config['tax'] ?? [];
+        $taxEnabled = (bool) ($taxConfig['enabled'] ?? false);
+        $taxRate = (float) ($taxConfig['rate'] ?? 0);
+        $taxCents = $taxEnabled && $taxRate > 0 ? (int) round($subtotalCents * $taxRate) : 0;
+
         /** @var Invoice $invoice */
         $invoice = new $invoiceModel([
             'number' => self::nextNumber($year),
@@ -60,12 +67,16 @@ class IssueInvoice
             'interval' => $subscription->interval,
             'period_start' => $subscription->current_period_start,
             'period_end' => $subscription->current_period_end,
-            'total_cents' => $plan?->priceCents($subscription->interval) ?? 0,
+            'subtotal_cents' => $subtotalCents,
+            'tax_cents' => $taxCents,
+            'tax_rate' => $taxCents > 0 ? $taxRate : null,
+            'tax_label' => $taxCents > 0 ? ($taxConfig['label'] ?? 'SST') : null,
+            'total_cents' => $subtotalCents + $taxCents,
             'currency' => $this->config['currency'] ?? 'MYR',
             'status' => InvoiceStatus::Paid,
             'issued_at' => $now,
             'paid_at' => $now,
-            'metadata' => [],
+            'metadata' => ['payment_method' => $subscription->gateway],
         ]);
         $invoice->save();
 

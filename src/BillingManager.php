@@ -9,6 +9,7 @@ use CleaniqueCoders\LaravelBilling\DataTransferObjects\WebhookEvent;
 use CleaniqueCoders\LaravelBilling\Enums\PlanInterval;
 use CleaniqueCoders\LaravelBilling\Enums\SubscriptionStatus;
 use CleaniqueCoders\LaravelBilling\Enums\WebhookEventType;
+use CleaniqueCoders\LaravelBilling\Events\SubscriptionCanceled;
 use CleaniqueCoders\LaravelBilling\Gateways\LocalGateway;
 use CleaniqueCoders\LaravelBilling\Models\Plan;
 use CleaniqueCoders\LaravelBilling\Models\Subscription;
@@ -108,6 +109,61 @@ class BillingManager
     public function handle(WebhookEvent $event): void
     {
         $this->container->make(WebhookProcessor::class)->process($event);
+    }
+
+    /**
+     * Cancel a subscription. By default the cancellation takes effect at the
+     * end of the current period (grace period via Subscription::onGracePeriod);
+     * pass atPeriodEnd=false to terminate immediately (also tells the gateway).
+     */
+    public function cancel(Subscription $subscription, bool $atPeriodEnd = true): Subscription
+    {
+        if ($atPeriodEnd) {
+            $subscription->forceFill(['cancel_at_period_end' => true])->save();
+
+            return $subscription;
+        }
+
+        try {
+            $this->gateway($subscription->gateway)->cancel($subscription);
+        } catch (\Throwable) {
+            // Best-effort upstream cancel; local state is still updated below.
+        }
+
+        $subscription->forceFill([
+            'status' => SubscriptionStatus::Canceled,
+            'canceled_at' => now(),
+            'cancel_at_period_end' => false,
+        ])->save();
+
+        SubscriptionCanceled::dispatch($subscription);
+
+        return $subscription;
+    }
+
+    /**
+     * Undo a scheduled (cancel_at_period_end) cancellation while still in the
+     * grace period.
+     */
+    public function resume(Subscription $subscription): Subscription
+    {
+        $subscription->forceFill(['cancel_at_period_end' => false])->save();
+
+        return $subscription;
+    }
+
+    /**
+     * Switch a subscription to a different plan/interval. No proration in v1;
+     * the change applies to the current subscription record immediately.
+     */
+    public function swap(Subscription $subscription, Plan $plan, PlanInterval $interval): Subscription
+    {
+        $subscription->forceFill([
+            'plan_tier' => $plan->tier,
+            'interval' => $interval,
+        ])->save();
+
+        return $subscription;
     }
 
     public function getDefaultGateway(): string

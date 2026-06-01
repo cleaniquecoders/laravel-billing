@@ -1,6 +1,6 @@
 # Laravel Billing
 
-A headless, gateway-agnostic subscription & invoicing engine for Laravel. **One package to maintain** — payment gateways are an extension point (a contract), not separate packages. Ships a built-in **local** gateway so any app has working billing on day one — ideal for demo, development, UAT, and testing.
+A gateway-agnostic subscription & invoicing engine for Laravel — with an **optional Livewire + Flux billing UI**. **One package to maintain** — payment gateways are an extension point (a contract), not separate packages. Ships a built-in **local** gateway so any app has working billing on day one, plus optional, publishable customer-facing pages (plans, subscription management, invoices, receipts) — ideal for demo, development, UAT, and testing.
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/cleaniquecoders/laravel-billing.svg?style=flat-square)](https://packagist.org/packages/cleaniquecoders/laravel-billing)
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/cleaniquecoders/laravel-billing/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/cleaniquecoders/laravel-billing/actions?query=workflow%3Arun-tests+branch%3Amain)
@@ -10,7 +10,7 @@ A headless, gateway-agnostic subscription & invoicing engine for Laravel. **One 
 
 - **One package, one repo.** No per-gateway sub-packages. BayarCash, ToyyibPay, Chip, senangPay, Stripe… each app writes a small driver class implementing the `PaymentGateway` contract. The package never references a real gateway by name.
 - **Batteries included.** A first-class `LocalGateway` driver (no real money) is the default, so a fresh app can run the full subscribe → activate → invoice flow immediately.
-- **Headless.** Models, services, contract, events, manager. No UI, no tenancy gating. Your app owns routes, UI, and access control.
+- **Headless core, optional UI.** Models, services, contract, events, manager — fully usable with no UI at all. Need billing pages fast? Enable the bundled **Livewire + Flux** UI (browse plans, subscribe, manage the subscription, list/inspect invoices, download invoice & receipt PDFs) behind your own `auth` middleware. Either way your app keeps control of routes and access.
 - **Tenancy optional.** The bill target is polymorphic: attach `Billable` to `User` (single-tenant) or `Team`/`Workspace`/`Organization` (multi-tenant). The package does not care.
 - **Malaysia-friendly invoicing.** MYR default, SST/SSM-aware invoice template, atomic sequential numbering — all configurable and neutral by default.
 
@@ -36,6 +36,12 @@ php artisan vendor:publish --tag="billing-seeders"
 ```
 
 > A fresh install defaults to `BILLING_GATEWAY=local`, so demo/UAT works **before** any merchant account exists.
+
+To use the optional billing UI, install Livewire and Flux in your app (the package guards on their presence, so this is only needed if you enable the UI):
+
+```bash
+composer require livewire/livewire livewire/flux
+```
 
 ## Make a model billable
 
@@ -183,6 +189,33 @@ Listen to drive your own side effects (provision access, dunning, Slack notifica
 
 Invoices use atomic, row-locked sequential numbering (`INV-2026-000001`) and are rendered to PDF from a brandless, SST/SSM-aware Blade template, stored via Laravel's `Filesystem` (disk configurable). Set seller details under `config('billing.company')`. Publish and override `resources/views/vendor/billing/invoice-pdf.blade.php` to brand it.
 
+## Billing UI (optional)
+
+The package ships a Livewire + Flux UI that closes the full **subscribe → pay → invoice → receipt** loop. It is opt-in and scoped to the authenticated billable.
+
+Requires `livewire/livewire` and `livewire/flux` in your app. Enable and scope it in `config('billing.routes')`:
+
+```php
+// config/billing.php
+'routes' => [
+    'enabled'    => true,
+    'prefix'     => 'billing',
+    'middleware' => ['web', 'auth'],
+],
+```
+
+That registers:
+
+| Route | Name | What it shows |
+|---|---|---|
+| `GET /billing/plans` | `billing.plans` | Plan cards with monthly/annual toggle; **Subscribe** runs `Billing::checkout()` |
+| `GET /billing` | `billing.portal` | **Overview** (current subscription, cancel/resume) + **Invoices** tab with a detail modal |
+| `GET /billing/success` | `billing.success` | Payment-success receipt card (amount, number, **Download invoice / receipt**) |
+| `GET /billing/invoices/{invoice:uuid}/download` | `billing.invoices.download` | Streams the stored invoice PDF |
+| `GET /billing/invoices/{invoice:uuid}/receipt` | `billing.invoices.receipt` | Streams a receipt PDF derived from the paid invoice |
+
+The billable is resolved via `config('billing.billable_resolver')` (defaults to `request()->user()`); set it to scope billing to a `Team`/`Workspace`. Every query is constrained to that billable, and the download/receipt routes 403 on a foreign invoice. Publish `laravel-billing-views` to override the Flux markup.
+
 ## Component ownership — package vs your app
 
 | Lives in the package | Lives in your app |
@@ -190,17 +223,37 @@ Invoices use atomic, row-locked sequential numbering (`INV-2026-000001`) and are
 | `Contracts\PaymentGateway`, `Contracts\Billable` | Concrete gateway drivers (`BayarCashGateway`, …) |
 | `Gateways\LocalGateway` (bundled default) | The real gateway SDK dependency |
 | Models, migrations, enums, DTOs, events | The `Billable` model + `use HasSubscriptions` |
-| `IssueInvoice`, `PlanRepository`, `BillingManager`, facade | Routes, UI (Livewire/Blade), access-control middleware |
+| `IssueInvoice`, `PlanRepository`, `BillingManager`, facade | Custom routes/UI beyond the bundled pages, access-control middleware |
 | Webhook dispatcher `Billing::handle()` | The webhook route + any environment/tenancy gating |
 | Brandless invoice PDF template + `InvoiceIssuedMail` | Company/tax config values, branded template override |
+| Optional Livewire + Flux billing UI (publishable, overridable) | Enabling/scoping the routes, `livewire/flux` install, branding |
 
-> **UI:** the package ships no Livewire/Blade components beyond the dev-only local checkout page. Build your billing pages in your app.
+> **UI:** the package ships an **optional** Livewire + Flux billing UI (plans, subscription, invoices, receipts) plus the dev-only local checkout page. It is opt-in — disable `billing.routes.enabled` (or skip installing `livewire/flux`) and the package stays fully headless. Publish and override the views to brand them, or build your own pages against the same models and facade.
 
 ## Testing
 
 ```bash
-composer test
+composer test          # Pest (Livewire components tested headlessly via Livewire::test)
+composer analyse       # PHPStan / Larastan
+vendor/bin/pint        # code style
 ```
+
+### Preview the UI locally (Testbench workbench)
+
+The package ships a Testbench workbench so you can click through the full
+**subscribe → pay → invoice → receipt** flow with the real Flux UI:
+
+```bash
+npm install
+npm run dev                          # Vite + Tailwind (compiles Flux styles) — keep running
+php vendor/bin/testbench workbench:build   # once: create sqlite db + run migrations
+php vendor/bin/testbench serve             # http://127.0.0.1:8000
+```
+
+Open the root URL — it auto-logs in a demo billable and lands on `/billing/plans`.
+The workbench (`workbench/`, `testbench.yaml`) configures a demo plan matrix
+(`config` store), the local gateway with the dev "Approve" checkout page, and
+SST tax — mirroring what a host app sets in `config/billing.php`.
 
 ## Changelog
 

@@ -1,6 +1,6 @@
 {
     "name": "cleaniquecoders/laravel-billing",
-    "description": "A headless, gateway-agnostic subscription & invoicing engine for Laravel. One package to maintain. Payment gateways are an extension point (a contract), not separate packages. Ships a built-in local gateway so any app has working billing on day one — ideal for demo, development, UAT, and testing.",
+    "description": "A gateway-agnostic subscription & invoicing engine for Laravel, with an optional Livewire + Flux billing UI. One package to maintain. Payment gateways are an extension point (a contract), not separate packages. Ships a built-in local gateway so any app has working billing on day one — ideal for demo, development, UAT, and testing.",
     "keywords": [
         "CleaniqueCoders",
         "laravel",
@@ -24,6 +24,8 @@
     },
     "require-dev": {
         "laravel/pint": "^1.14",
+        "livewire/flux": "^2.0",
+        "livewire/livewire": "^3.0||^4.0",
         "nunomaduro/collision": "^8.8",
         "larastan/larastan": "^3.0",
         "orchestra/testbench": "^11.0.0||^10.0.0||^9.0.0",
@@ -34,6 +36,10 @@
         "phpstan/phpstan-deprecation-rules": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0"
     },
+    "suggest": {
+        "livewire/livewire": "Required for the optional customer-facing billing UI (^3.0||^4.0).",
+        "livewire/flux": "Required for the optional billing UI components (Flux UI)."
+    },
     "autoload": {
         "psr-4": {
             "CleaniqueCoders\\LaravelBilling\\": "src/",
@@ -43,7 +49,8 @@
     "autoload-dev": {
         "psr-4": {
             "CleaniqueCoders\\LaravelBilling\\Tests\\": "tests/",
-            "Workbench\\App\\": "workbench/app/"
+            "Workbench\\App\\": "workbench/app/",
+            "Workbench\\Database\\": "workbench/database/"
         }
     },
     "scripts": {

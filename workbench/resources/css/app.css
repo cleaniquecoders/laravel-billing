@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+@import '../../../vendor/livewire/flux/dist/flux.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Scan the package's Livewire views and the workbench layout for classes. */
+@source '../../../resources/views';
+@source '../views';
