@@ -2,16 +2,13 @@
 
 namespace CleaniqueCoders\LaravelBilling\Gateways;
 
-use CleaniqueCoders\LaravelBilling\Contracts\Billable;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutIntent;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutRequest;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\WebhookEvent;
-use CleaniqueCoders\LaravelBilling\Enums\PlanInterval;
 use CleaniqueCoders\LaravelBilling\Enums\WebhookEventType;
 use CleaniqueCoders\LaravelBilling\Gateways\Support\RedirectForm;
-use CleaniqueCoders\LaravelBilling\Models\Plan;
 use CleaniqueCoders\LaravelBilling\Models\Subscription;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 /**
  * senangPay driver — a form-POST gateway. Recurring is available via senangPay's
@@ -26,19 +23,19 @@ use Illuminate\Support\Str;
  */
 class SenangPayGateway extends Gateway
 {
-    public function createCheckout(Billable $billable, Plan $plan, PlanInterval $interval, string $returnUrl): CheckoutIntent
+    public function checkout(CheckoutRequest $request): CheckoutIntent
     {
-        $orderId = 'SUB'.Str::upper(Str::random(12));
-        $amount = number_format($plan->priceCents($interval) / 100, 2, '.', '');
-        $detail = $plan->name.' ('.$interval->value.')';
+        $orderId = $this->reference($request);
+        $amount = $request->amountDecimal();
+        $detail = $request->description;
 
         $fields = [
             'detail' => $detail,
             'amount' => $amount,
             'order_id' => $orderId,
-            'name' => $billable->billingName(),
-            'email' => $billable->billingEmail(),
-            'phone' => '',
+            'name' => $request->customerName,
+            'email' => $request->customerEmail,
+            'phone' => (string) $request->customerPhone,
             'hash' => $this->md5(((string) $this->config('secret_key')).$detail.$amount.$orderId),
         ];
 

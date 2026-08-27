@@ -5,6 +5,8 @@ namespace CleaniqueCoders\LaravelBilling\Tests\Fixtures\Gateways;
 use CleaniqueCoders\LaravelBilling\Contracts\Billable;
 use CleaniqueCoders\LaravelBilling\Contracts\PaymentGateway;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutIntent;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutRequest;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\PaymentStatus;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\WebhookEvent;
 use CleaniqueCoders\LaravelBilling\Enums\PlanInterval;
 use CleaniqueCoders\LaravelBilling\Enums\WebhookEventType;
@@ -25,6 +27,12 @@ class ArrayGateway implements PaymentGateway
     /** @var array<int,Subscription> */
     public array $canceled = [];
 
+    /** @var array<int,CheckoutRequest> */
+    public array $charges = [];
+
+    /** @var array<string,PaymentStatus> */
+    public array $statuses = [];
+
     public function createCheckout(
         Billable $billable,
         Plan $plan,
@@ -41,6 +49,20 @@ class ArrayGateway implements PaymentGateway
         ];
 
         return new CheckoutIntent($returnUrl, $externalId);
+    }
+
+    public function checkout(CheckoutRequest $request): CheckoutIntent
+    {
+        $this->charges[] = $request;
+
+        $externalId = $request->reference ?? 'arr_'.Str::random(12);
+
+        return new CheckoutIntent($request->returnUrl, $externalId);
+    }
+
+    public function fetch(string $externalId): ?PaymentStatus
+    {
+        return $this->statuses[$externalId] ?? null;
     }
 
     public function cancel(Subscription $subscription): void

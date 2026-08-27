@@ -3,13 +3,14 @@
 namespace CleaniqueCoders\LaravelBilling\Gateways;
 
 use CleaniqueCoders\LaravelBilling\BillingManager;
-use CleaniqueCoders\LaravelBilling\Contracts\Billable;
 use CleaniqueCoders\LaravelBilling\Contracts\PaymentGateway;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutIntent;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutRequest;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\PaymentStatus;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\WebhookEvent;
-use CleaniqueCoders\LaravelBilling\Enums\PlanInterval;
 use CleaniqueCoders\LaravelBilling\Enums\WebhookEventType;
-use CleaniqueCoders\LaravelBilling\Models\Plan;
+use CleaniqueCoders\LaravelBilling\Exceptions\UnsupportedByGateway;
+use CleaniqueCoders\LaravelBilling\Gateways\Concerns\MapsPlanToCheckout;
 use CleaniqueCoders\LaravelBilling\Models\Subscription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
@@ -24,29 +25,40 @@ use Illuminate\Support\Str;
  */
 class LocalGateway implements PaymentGateway
 {
-    public function createCheckout(
-        Billable $billable,
-        Plan $plan,
-        PlanInterval $interval,
-        string $returnUrl,
-    ): CheckoutIntent {
-        $externalId = (string) Str::orderedUuid();
-        $amountCents = $plan->priceCents($interval);
+    use MapsPlanToCheckout;
+
+    public function checkout(CheckoutRequest $request): CheckoutIntent
+    {
+        // An ordered uuid rather than the base class's random reference: the
+        // local gateway is what a fresh install and every test runs on, and a
+        // sortable id makes a list of fake payments read in the order they
+        // were made.
+        $externalId = $request->reference ?? (string) Str::orderedUuid();
 
         // In auto mode the manager activates immediately; the redirect is unused.
         if ($this->autoApproves()) {
-            return new CheckoutIntent($returnUrl, $externalId);
+            return new CheckoutIntent($request->returnUrl, $externalId);
         }
 
         $token = static::sign([
             'external_id' => $externalId,
-            'amount_cents' => $amountCents,
-            'return_url' => $returnUrl,
+            'amount_cents' => $request->amountCents,
+            'return_url' => $request->returnUrl,
         ]);
 
         $redirect = URL::route('billing.local.checkout', ['token' => $token]);
 
         return new CheckoutIntent($redirect, $externalId);
+    }
+
+    /**
+     * The local gateway keeps no ledger, so it cannot answer this — and saying
+     * so is better than returning a confident "not paid" about a payment that
+     * a developer just approved on the dev checkout page.
+     */
+    public function fetch(string $externalId): ?PaymentStatus
+    {
+        throw UnsupportedByGateway::cannot('local', 'be asked about a payment');
     }
 
     public function cancel(Subscription $subscription): void

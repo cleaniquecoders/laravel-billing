@@ -2,12 +2,11 @@
 
 namespace CleaniqueCoders\LaravelBilling\Gateways;
 
-use CleaniqueCoders\LaravelBilling\Contracts\Billable;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutIntent;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutRequest;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\PaymentStatus;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\WebhookEvent;
-use CleaniqueCoders\LaravelBilling\Enums\PlanInterval;
 use CleaniqueCoders\LaravelBilling\Enums\WebhookEventType;
-use CleaniqueCoders\LaravelBilling\Models\Plan;
 use CleaniqueCoders\LaravelBilling\Models\Subscription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -24,25 +23,25 @@ use RuntimeException;
  */
 class ToyyibPayGateway extends Gateway
 {
-    public function createCheckout(Billable $billable, Plan $plan, PlanInterval $interval, string $returnUrl): CheckoutIntent
+    public function checkout(CheckoutRequest $request): CheckoutIntent
     {
-        $orderId = 'SUB'.Str::upper(Str::random(12));
+        $orderId = $this->reference($request);
 
         $res = Http::asForm()
             ->post($this->base().'/index.php/api/createBill', [
                 'userSecretKey' => (string) $this->config('secret_key'),
                 'categoryCode' => (string) $this->config('category_code'),
-                'billName' => Str::limit($plan->name, 30, ''),
-                'billDescription' => $plan->name.' ('.$interval->value.')',
+                'billName' => Str::limit($request->description, 30, ''),
+                'billDescription' => $request->description,
                 'billPriceSetting' => 1,
                 'billPayorInfo' => 1,
-                'billAmount' => $plan->priceCents($interval),
-                'billReturnUrl' => $returnUrl,
-                'billCallbackUrl' => (string) $this->config('callback_url'),
+                'billAmount' => $request->amountCents,
+                'billReturnUrl' => $request->returnUrl,
+                'billCallbackUrl' => $this->callbackUrl($request),
                 'billExternalReferenceNo' => $orderId,
-                'billTo' => $billable->billingName(),
-                'billEmail' => $billable->billingEmail(),
-                'billPhone' => '0000000000',
+                'billTo' => $request->customerName,
+                'billEmail' => $request->customerEmail,
+                'billPhone' => $request->customerPhone ?? '0000000000',
                 'billPaymentChannel' => '2',
             ])->throw()->json();
 
@@ -91,6 +90,47 @@ class ToyyibPayGateway extends Gateway
         }
 
         return null;
+    }
+
+    /**
+     * toyyibPay CAN be asked, which is why `parseWebhook()` already re-queries
+     * — its callbacks are not signed, so the query is the only trustworthy
+     * signal. Exposing it means a host application can settle the same
+     * question out of band when a callback never arrived.
+     *
+     * An empty transaction list is a real answer here — the bill exists and
+     * nobody has paid it — so this returns a PaymentStatus rather than null.
+     * Null is reserved for a bill code the gateway does not know.
+     */
+    public function fetch(string $externalId): ?PaymentStatus
+    {
+        $transactions = Http::asForm()
+            ->post($this->base().'/index.php/api/getBillTransactions', [
+                'billCode' => $externalId,
+                'userSecretKey' => (string) $this->config('secret_key'),
+            ])->json();
+
+        $rows = collect(is_array($transactions) ? $transactions : []);
+
+        // toyyibPay answers an unknown bill code with `[{"...":"..."}]`-shaped
+        // noise rather than a 404; a row with no status field at all is the
+        // closest thing it gives to "no such bill".
+        if ($rows->isEmpty()) {
+            return null;
+        }
+
+        $paid = $rows->contains(fn ($txn): bool => (string) ($txn['billpaymentStatus'] ?? '') === '1');
+
+        return new PaymentStatus(
+            externalId: $externalId,
+            paid: $paid,
+            status: (string) ($rows->first()['billpaymentStatus'] ?? 'unknown'),
+            amountCents: isset($rows->first()['billpaymentAmount'])
+                ? (int) round(((float) $rows->first()['billpaymentAmount']) * 100)
+                : null,
+            currency: 'MYR',
+            raw: $rows->all(),
+        );
     }
 
     protected function isPaid(string $billCode): bool

@@ -2,16 +2,13 @@
 
 namespace CleaniqueCoders\LaravelBilling\Gateways;
 
-use CleaniqueCoders\LaravelBilling\Contracts\Billable;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutIntent;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutRequest;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\WebhookEvent;
-use CleaniqueCoders\LaravelBilling\Enums\PlanInterval;
 use CleaniqueCoders\LaravelBilling\Enums\WebhookEventType;
 use CleaniqueCoders\LaravelBilling\Gateways\Support\RedirectForm;
-use CleaniqueCoders\LaravelBilling\Models\Plan;
 use CleaniqueCoders\LaravelBilling\Models\Subscription;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 /**
  * SecurePay driver — the browser POSTs signed fields to /api/v1/payments, so
@@ -32,22 +29,22 @@ class SecurePayGateway extends Gateway
         'product_description', 'redirect_url', 'transaction_amount', 'uid',
     ];
 
-    public function createCheckout(Billable $billable, Plan $plan, PlanInterval $interval, string $returnUrl): CheckoutIntent
+    public function checkout(CheckoutRequest $request): CheckoutIntent
     {
-        $orderId = 'SUB'.Str::upper(Str::random(12));
-        $amount = number_format($plan->priceCents($interval) / 100, 2, '.', '');
+        $orderId = $this->reference($request);
+        $amount = $request->amountDecimal();
 
         $fields = [
             'uid' => (string) $this->config('uid'),
             'token' => (string) $this->config('auth_token'),
             'order_number' => $orderId,
-            'buyer_name' => $billable->billingName(),
-            'buyer_email' => $billable->billingEmail(),
-            'buyer_phone' => (string) $this->config('default_phone', '0000000000'),
+            'buyer_name' => $request->customerName,
+            'buyer_email' => $request->customerEmail,
+            'buyer_phone' => $request->customerPhone ?? (string) $this->config('default_phone', '0000000000'),
             'transaction_amount' => $amount,
-            'product_description' => $plan->name.' ('.$interval->value.')',
-            'callback_url' => (string) $this->config('callback_url'),
-            'redirect_url' => $returnUrl,
+            'product_description' => $request->description,
+            'callback_url' => $this->callbackUrl($request),
+            'redirect_url' => $request->returnUrl,
         ];
         $fields['checksum'] = $this->requestChecksum($fields);
 
