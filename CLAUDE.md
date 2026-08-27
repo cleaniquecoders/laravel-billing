@@ -78,3 +78,7 @@ Listen to these in the host app to drive side effects (provision access, dunning
 ## Further docs
 
 `docs/` holds the full guide (getting started, architecture, billing UI with screenshots, every config key, development, examples). `README.md` is the user-facing overview.
+
+## Gotchas
+
+> **Gotcha:** **Packagist caches a tag's dist, so re-pushing a corrected tag does not fix a bad release.** 2.0.0 was tagged against the wrong commit, deleted, and re-pushed at the right one — and `composer require` went on installing the *original* zip, with none of the release's code in it, while `composer show` reported 2.0.0 quite happily. `composer clear-cache` does not help; the stale artifact is on Packagist's side. The only reliable repair is to **supersede with a new version** (and delete the bad release + tag so nothing can resolve it, since `^2.0` would otherwise happily pick the broken one). The prevention is cheaper than the cure: after `gh pr merge`, `git checkout main && git pull` and grep for something the release actually adds *before* tagging — a merge that reports conflicts has not landed, and tagging on the strength of the command having been typed is how a release ships empty.
