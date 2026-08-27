@@ -2,12 +2,11 @@
 
 namespace CleaniqueCoders\LaravelBilling\Gateways;
 
-use CleaniqueCoders\LaravelBilling\Contracts\Billable;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutIntent;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutRequest;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\PaymentStatus;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\WebhookEvent;
-use CleaniqueCoders\LaravelBilling\Enums\PlanInterval;
 use CleaniqueCoders\LaravelBilling\Enums\WebhookEventType;
-use CleaniqueCoders\LaravelBilling\Models\Plan;
 use CleaniqueCoders\LaravelBilling\Models\Subscription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -24,21 +23,53 @@ use Illuminate\Support\Facades\Http;
  */
 class BillplzGateway extends Gateway
 {
-    public function createCheckout(Billable $billable, Plan $plan, PlanInterval $interval, string $returnUrl): CheckoutIntent
+    public function checkout(CheckoutRequest $request): CheckoutIntent
     {
         $bill = Http::withBasicAuth((string) $this->config('api_key'), '')
             ->asForm()
-            ->post($this->base().'/api/v3/bills', [
+            ->post($this->base().'/api/v3/bills', array_filter([
                 'collection_id' => (string) $this->config('collection_id'),
-                'email' => $billable->billingEmail(),
-                'name' => $billable->billingName(),
-                'amount' => $plan->priceCents($interval),
-                'description' => $plan->name.' ('.$interval->value.')',
-                'callback_url' => (string) $this->config('callback_url'),
-                'redirect_url' => $returnUrl,
-            ])->throw()->json();
+                'email' => $request->customerEmail,
+                'name' => $request->customerName,
+                'amount' => $request->amountCents,
+                'description' => $request->description,
+                'callback_url' => $this->callbackUrl($request),
+                'redirect_url' => $request->returnUrl,
+                // Billplz echoes this back on the callback and on the bill.
+                // The caller's own id is what lets an application find the
+                // invoice a payment belongs to without a lookup table.
+                'reference_1_label' => $request->reference === null ? null : 'Reference',
+                'reference_1' => $request->reference,
+            ], fn ($v): bool => $v !== null))->throw()->json();
 
         return new CheckoutIntent((string) $bill['url'], (string) $bill['id']);
+    }
+
+    /**
+     * `GET /api/v3/bills/{id}` — Billplz's own record of the bill.
+     *
+     * A 404 means no such bill, which is an answer. Anything else is the API
+     * failing and must not be reported as "not paid".
+     */
+    public function fetch(string $externalId): ?PaymentStatus
+    {
+        $response = Http::withBasicAuth((string) $this->config('api_key'), '')
+            ->get($this->base().'/api/v3/bills/'.$externalId);
+
+        if ($response->status() === 404) {
+            return null;
+        }
+
+        $bill = $response->throw()->json();
+
+        return new PaymentStatus(
+            externalId: (string) ($bill['id'] ?? $externalId),
+            paid: (bool) ($bill['paid'] ?? false),
+            status: (string) ($bill['state'] ?? 'unknown'),
+            amountCents: isset($bill['amount']) ? (int) $bill['amount'] : null,
+            currency: 'MYR',
+            raw: (array) $bill,
+        );
     }
 
     public function cancel(Subscription $subscription): void

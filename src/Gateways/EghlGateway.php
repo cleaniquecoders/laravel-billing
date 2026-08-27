@@ -2,16 +2,13 @@
 
 namespace CleaniqueCoders\LaravelBilling\Gateways;
 
-use CleaniqueCoders\LaravelBilling\Contracts\Billable;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutIntent;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutRequest;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\WebhookEvent;
-use CleaniqueCoders\LaravelBilling\Enums\PlanInterval;
 use CleaniqueCoders\LaravelBilling\Enums\WebhookEventType;
 use CleaniqueCoders\LaravelBilling\Gateways\Support\RedirectForm;
-use CleaniqueCoders\LaravelBilling\Models\Plan;
 use CleaniqueCoders\LaravelBilling\Models\Subscription;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 /**
  * eGHL driver — a form-POST gateway. The browser POSTs hashed fields to the eGHL
@@ -31,11 +28,11 @@ use Illuminate\Support\Str;
  */
 class EghlGateway extends Gateway
 {
-    public function createCheckout(Billable $billable, Plan $plan, PlanInterval $interval, string $returnUrl): CheckoutIntent
+    public function checkout(CheckoutRequest $request): CheckoutIntent
     {
-        $paymentId = 'SUB'.Str::upper(Str::random(12));
-        $amount = number_format($plan->priceCents($interval) / 100, 2, '.', '');
-        $currency = (string) config('billing.currency', 'MYR');
+        $paymentId = $this->reference($request);
+        $amount = $request->amountDecimal();
+        $currency = $request->currency;
 
         $fields = [
             'TransactionType' => 'SALE',
@@ -43,15 +40,15 @@ class EghlGateway extends Gateway
             'ServiceID' => (string) $this->config('service_id'),
             'PaymentID' => $paymentId,
             'OrderNumber' => $paymentId,
-            'PaymentDesc' => $plan->name.' ('.$interval->value.')',
-            'MerchantReturnURL' => $returnUrl,
-            'MerchantCallBackURL' => (string) $this->config('callback_url'),
+            'PaymentDesc' => $request->description,
+            'MerchantReturnURL' => $request->returnUrl,
+            'MerchantCallBackURL' => $this->callbackUrl($request),
             'Amount' => $amount,
             'CurrencyCode' => $currency,
-            'CustName' => $billable->billingName(),
-            'CustEmail' => $billable->billingEmail(),
-            'CustPhone' => '',
-            'HashValue' => $this->requestHash($paymentId, $returnUrl, $amount, $currency),
+            'CustName' => $request->customerName,
+            'CustEmail' => $request->customerEmail,
+            'CustPhone' => (string) $request->customerPhone,
+            'HashValue' => $this->requestHash($paymentId, $request->returnUrl, $amount, $currency),
         ];
 
         $token = RedirectForm::sign((string) $this->config('payment_url'), $fields);

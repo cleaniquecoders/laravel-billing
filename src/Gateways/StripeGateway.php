@@ -4,6 +4,8 @@ namespace CleaniqueCoders\LaravelBilling\Gateways;
 
 use CleaniqueCoders\LaravelBilling\Contracts\Billable;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutIntent;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutRequest;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\PaymentStatus;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\WebhookEvent;
 use CleaniqueCoders\LaravelBilling\Enums\PlanInterval;
 use CleaniqueCoders\LaravelBilling\Enums\WebhookEventType;
@@ -53,6 +55,71 @@ class StripeGateway extends Gateway
             ])->throw()->json();
 
         return new CheckoutIntent((string) $session['url'], (string) $session['id']);
+    }
+
+    /**
+     * A one-off payment, not a subscription.
+     *
+     * Deliberately a separate code path from `createCheckout()`, which stays
+     * `mode: subscription` against a **pre-configured Stripe price id**. The
+     * two are genuinely different Stripe objects: a subscription renews and
+     * fires `invoice.paid` forever, an ad-hoc charge with `price_data` happens
+     * once. Collapsing them would mean either inventing a Stripe price for
+     * every invoice, or quietly turning a one-time fee into a recurring one.
+     */
+    public function checkout(CheckoutRequest $request): CheckoutIntent
+    {
+        $session = Http::withToken((string) $this->config('secret'))
+            ->asForm()
+            ->post($this->base.'/v1/checkout/sessions', [
+                'mode' => 'payment',
+                'line_items' => [[
+                    'quantity' => 1,
+                    'price_data' => [
+                        // Stripe wants the currency lower-cased and the amount
+                        // in minor units, which is what CheckoutRequest holds.
+                        'currency' => strtolower($request->currency),
+                        'unit_amount' => $request->amountCents,
+                        'product_data' => ['name' => $request->description],
+                    ],
+                ]],
+                'success_url' => $request->returnUrl,
+                'cancel_url' => $request->returnUrl,
+                'customer_email' => $request->customerEmail,
+                'client_reference_id' => $request->reference,
+                'metadata' => $request->metadata,
+            ])->throw()->json();
+
+        return new CheckoutIntent((string) $session['url'], (string) $session['id']);
+    }
+
+    /**
+     * `GET /v1/checkout/sessions/{id}`.
+     *
+     * `payment_status` is the field that answers the question — a session can
+     * be `complete` with `payment_status: unpaid` when the customer chose a
+     * delayed method, and reading `status` alone would report that as paid.
+     */
+    public function fetch(string $externalId): ?PaymentStatus
+    {
+        $response = Http::withToken((string) $this->config('secret'))
+            ->get($this->base.'/v1/checkout/sessions/'.$externalId);
+
+        if ($response->status() === 404) {
+            return null;
+        }
+
+        $session = $response->throw()->json();
+        $paymentStatus = (string) ($session['payment_status'] ?? 'unpaid');
+
+        return new PaymentStatus(
+            externalId: (string) ($session['id'] ?? $externalId),
+            paid: $paymentStatus === 'paid' || $paymentStatus === 'no_payment_required',
+            status: $paymentStatus,
+            amountCents: isset($session['amount_total']) ? (int) $session['amount_total'] : null,
+            currency: isset($session['currency']) ? strtoupper((string) $session['currency']) : null,
+            raw: (array) $session,
+        );
     }
 
     public function cancel(Subscription $subscription): void

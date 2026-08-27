@@ -4,6 +4,7 @@ namespace CleaniqueCoders\LaravelBilling\Gateways;
 
 use CleaniqueCoders\LaravelBilling\Contracts\Billable;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutIntent;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutRequest;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\WebhookEvent;
 use CleaniqueCoders\LaravelBilling\Enums\PlanInterval;
 use CleaniqueCoders\LaravelBilling\Enums\WebhookEventType;
@@ -23,6 +24,12 @@ use RuntimeException;
  */
 class PayPalGateway extends Gateway
 {
+    /**
+     * PayPal, like Stripe, has NATIVE subscriptions against a pre-configured
+     * plan id — so this keeps its own path rather than being folded into the
+     * one-off primitive. The two are different PayPal resources: a
+     * subscription renews by itself, an order is captured once.
+     */
     public function createCheckout(Billable $billable, Plan $plan, PlanInterval $interval, string $returnUrl): CheckoutIntent
     {
         $planId = $this->config("plans.{$plan->tier}.{$interval->value}");
@@ -40,6 +47,37 @@ class PayPalGateway extends Gateway
             ])->throw()->json();
 
         $approve = data_get(collect($res['links'] ?? [])->firstWhere('rel', 'approve'), 'href', $returnUrl);
+
+        return new CheckoutIntent((string) $approve, (string) ($res['id'] ?? ''));
+    }
+
+    /**
+     * A one-off payment through the Orders API v2.
+     *
+     * `intent: CAPTURE` rather than `AUTHORIZE`: an authorisation that nobody
+     * captures expires silently after a few days, which looks exactly like a
+     * payment that worked until the money never arrives.
+     */
+    public function checkout(CheckoutRequest $request): CheckoutIntent
+    {
+        $res = Http::withToken($this->token())
+            ->post($this->base().'/v2/checkout/orders', [
+                'intent' => 'CAPTURE',
+                'purchase_units' => [array_filter([
+                    'reference_id' => $request->reference,
+                    'description' => $request->description,
+                    'amount' => [
+                        'currency_code' => $request->currency,
+                        'value' => $request->amountDecimal(),
+                    ],
+                ], fn ($v): bool => $v !== null)],
+                'application_context' => [
+                    'return_url' => $request->returnUrl,
+                    'cancel_url' => $request->returnUrl,
+                ],
+            ])->throw()->json();
+
+        $approve = data_get(collect($res['links'] ?? [])->firstWhere('rel', 'approve'), 'href', $request->returnUrl);
 
         return new CheckoutIntent((string) $approve, (string) ($res['id'] ?? ''));
     }

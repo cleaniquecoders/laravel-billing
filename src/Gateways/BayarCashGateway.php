@@ -2,16 +2,13 @@
 
 namespace CleaniqueCoders\LaravelBilling\Gateways;
 
-use CleaniqueCoders\LaravelBilling\Contracts\Billable;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutIntent;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutRequest;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\WebhookEvent;
-use CleaniqueCoders\LaravelBilling\Enums\PlanInterval;
 use CleaniqueCoders\LaravelBilling\Enums\WebhookEventType;
-use CleaniqueCoders\LaravelBilling\Models\Plan;
 use CleaniqueCoders\LaravelBilling\Models\Subscription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -37,10 +34,10 @@ class BayarCashGateway extends Gateway
         'currency', 'amount', 'payer_name', 'payer_email', 'status',
     ];
 
-    public function createCheckout(Billable $billable, Plan $plan, PlanInterval $interval, string $returnUrl): CheckoutIntent
+    public function checkout(CheckoutRequest $request): CheckoutIntent
     {
-        $orderId = 'SUB'.Str::upper(Str::random(12));
-        $amount = number_format($plan->priceCents($interval) / 100, 2, '.', '');
+        $orderId = $this->reference($request);
+        $amount = $request->amountDecimal();
 
         $res = Http::withToken((string) $this->config('pat'))
             ->acceptJson()
@@ -49,11 +46,11 @@ class BayarCashGateway extends Gateway
                 'portal_key' => (string) $this->config('portal_key'),
                 'order_number' => $orderId,
                 'amount' => $amount,
-                'payer_name' => $billable->billingName(),
-                'payer_email' => $billable->billingEmail(),
-                'payer_telephone_number' => (string) $this->config('default_phone', '0000000000'),
-                'return_url' => $returnUrl,
-                'callback_url' => (string) $this->config('callback_url'),
+                'payer_name' => $request->customerName,
+                'payer_email' => $request->customerEmail,
+                'payer_telephone_number' => $request->customerPhone ?? (string) $this->config('default_phone', '0000000000'),
+                'return_url' => $request->returnUrl,
+                'callback_url' => $this->callbackUrl($request),
             ])->throw()->json();
 
         $url = $res['url'] ?? data_get($res, 'data.url');

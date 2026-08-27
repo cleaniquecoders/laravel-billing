@@ -41,6 +41,42 @@ To use the optional billing UI, install Livewire and Flux in your app (the packa
 composer require livewire/livewire livewire/flux
 ```
 
+## Charge for anything, not just a plan
+
+The `PaymentGateway` contract's primitive is a **one-off charge**, described with no model from this package — so the bundled drivers work for an invoice, a top-up or a one-time fee, not only for a subscription.
+
+```php
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutRequest;
+use CleaniqueCoders\LaravelBilling\Facades\Billing;
+
+$intent = Billing::gateway()->checkout(new CheckoutRequest(
+    amountCents: 12_500,              // minor units, never a float
+    description: 'Invoice INV-1042',
+    customerName: 'Ali bin Abu',
+    customerEmail: 'ali@example.test',
+    returnUrl: route('invoices.show', $invoice),
+    reference: $invoice->number,      // echoed back, so the webhook finds the invoice
+));
+
+return redirect()->away($intent->redirectUrl);
+```
+
+A plan checkout is the same thing described by a plan — `createCheckout()` maps one onto the other in the base class, so a driver only implements `checkout()`.
+
+### Ask, don't only wait
+
+A webhook that was never delivered is indistinguishable from a payment that never happened. `fetch()` settles it:
+
+```php
+$status = Billing::gateway()->fetch($invoice->external_ref);
+
+// null      => the gateway has no record of it
+// ->paid    => normalised across gateways; ->status keeps their own word for it
+// throws UnsupportedByGateway => this gateway offers no way to ask
+```
+
+Implemented for Billplz, Stripe and toyyibPay. Gateways that are a signed redirect form with no query API throw, because inventing an endpoint would be worse than saying so.
+
 ## Make a model billable
 
 Any model becomes billable by implementing the `Billable` contract and using the `HasSubscriptions` trait.

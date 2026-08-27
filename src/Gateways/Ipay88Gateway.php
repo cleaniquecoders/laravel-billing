@@ -2,16 +2,13 @@
 
 namespace CleaniqueCoders\LaravelBilling\Gateways;
 
-use CleaniqueCoders\LaravelBilling\Contracts\Billable;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutIntent;
+use CleaniqueCoders\LaravelBilling\DataTransferObjects\CheckoutRequest;
 use CleaniqueCoders\LaravelBilling\DataTransferObjects\WebhookEvent;
-use CleaniqueCoders\LaravelBilling\Enums\PlanInterval;
 use CleaniqueCoders\LaravelBilling\Enums\WebhookEventType;
 use CleaniqueCoders\LaravelBilling\Gateways\Support\RedirectForm;
-use CleaniqueCoders\LaravelBilling\Models\Plan;
 use CleaniqueCoders\LaravelBilling\Models\Subscription;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 /**
  * iPay88 driver — a one-time, form-POST gateway (no native subscriptions). The
@@ -29,11 +26,11 @@ class Ipay88Gateway extends Gateway
 {
     protected string $entryUrl = 'https://www.mobile88.com/epayment/entry.asp';
 
-    public function createCheckout(Billable $billable, Plan $plan, PlanInterval $interval, string $returnUrl): CheckoutIntent
+    public function checkout(CheckoutRequest $request): CheckoutIntent
     {
-        $refNo = 'SUB'.Str::upper(Str::random(12));
-        $amount = number_format($plan->priceCents($interval) / 100, 2, '.', '');
-        $currency = (string) config('billing.currency', 'MYR');
+        $refNo = $this->reference($request);
+        $amount = $request->amountDecimal();
+        $currency = $request->currency;
 
         $fields = [
             'MerchantCode' => (string) $this->config('merchant_code'),
@@ -41,13 +38,13 @@ class Ipay88Gateway extends Gateway
             'RefNo' => $refNo,
             'Amount' => $amount,
             'Currency' => $currency,
-            'ProdDesc' => $plan->name.' ('.$interval->value.')',
-            'UserName' => $billable->billingName(),
-            'UserEmail' => $billable->billingEmail(),
-            'UserContact' => '',
+            'ProdDesc' => $request->description,
+            'UserName' => $request->customerName,
+            'UserEmail' => $request->customerEmail,
+            'UserContact' => (string) $request->customerPhone,
             'Remark' => '',
             'Lang' => 'UTF-8',
-            'ResponseURL' => $returnUrl,
+            'ResponseURL' => $request->returnUrl,
             'BackendURL' => (string) $this->config('backend_url'),
             'Signature' => $this->requestSignature($refNo, $amount, $currency),
         ];
