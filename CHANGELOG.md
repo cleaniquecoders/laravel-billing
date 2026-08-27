@@ -2,9 +2,11 @@
 
 All notable changes to `laravel-billing` will be documented in this file.
 
-## 2.0.0 - 2026-08-27
+## 2.0.1 - 2026-08-27
 
 **The one-off charge is now the primitive**, and a plan checkout is a one-off charge described by a plan.
+
+> 2.0.0 was tagged against the wrong commit and has been withdrawn — it contained none of the changes below. Use 2.0.1.
 
 ### Why
 
